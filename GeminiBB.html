@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BB Gemini Chat</title>
+ <style>
+      * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          font-size: 14px;
+      }
+      body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          padding: 10px;
+          max-width: 800px;
+          margin: 0 auto;
+          background: #121212; /* Gemini dark background */
+          color: #E8EAED; /* Gemini light text */
+          height: 100vh;
+          display: flex;
+          flex-direction: column;
+      }
+      #headerSection {
+          background: #1E1E1E; /* Gemini header dark tone */
+          border-radius: 5px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+          margin-bottom: 10px;
+          padding: 10px;
+          flex-shrink: 0;
+      }
+      .status-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+      }
+      .key-indicator {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          display: inline-block;
+          background: #ccc;
+          margin-right: 5px;
+      }
+      .key-indicator.active {
+          background: #00C853; /* Gemini green */
+      }
+      .reset-link {
+          color: #FF5252; /* Gemini red */
+          text-decoration: underline;
+          cursor: pointer;
+      }
+      #apiKeyInput {
+          width: 100%;
+          padding: 8px;
+          border: 1px solid #333;
+          border-radius: 4px;
+          margin-top: 5px;
+          background: #1E1E1E;
+          color: #E8EAED;
+      }
+      #mainContainer {
+          background: #1E1E1E; /* Gemini dark tone */
+          border-radius: 5px;
+          padding: 10px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0; /* Important for Firefox */
+      }
+      #messageHistory {
+          flex-grow: 1;
+          overflow-y: auto;
+          border: 1px solid #333;
+          border-radius: 4px;
+          padding: 10px;
+          margin-bottom: 10px;
+          min-height: 0; /* Important for Firefox */
+          background: #121212;
+      }
+      .message {
+          margin-bottom: 10px;
+          padding: 8px;
+          border-radius: 4px;
+          position: relative;
+          word-wrap: break-word;
+      }
+      .user-message {
+          background: #1F73B7; /* Gemini blue */
+          margin-left: 20px;
+          color: #fff;
+      }
+      .assistant-message {
+          background: #2D2D2D; /* Gemini gray */
+          margin-right: 20px;
+          color: #E8EAED;
+      }
+      .status-message {
+          background: #333;
+          text-align: center;
+          font-style: italic;
+          color: #B0BEC5;
+      }
+      #inputSection {
+          flex-shrink: 0;
+          margin-top: auto;
+      }
+      #inputRow {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 5px;
+      }
+      #userInput {
+          flex-grow: 1;
+          padding: 8px;
+          border: 1px solid #333;
+          border-radius: 4px;
+          height: 40px;
+          background: #1E1E1E;
+          color: #E8EAED;
+      }
+      #sendButton {
+          padding: 8px 16px;
+          background: #4285F4; /* Gemini blue button */
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          min-width: 70px;
+          height: 40px;
+      }
+      button:disabled {
+          background: #555;
+      }
+      #actionLinks {
+          display: flex;
+          justify-content: space-between;
+          padding: 5px;
+          font-size: 12px;
+      }
+      .action-link {
+          color: #4285F4; /* Gemini blue */
+          text-decoration: underline;
+          cursor: pointer;
+      }
+      .action-link.delete {
+          color: #FF5252; /* Gemini red */
+      }
+      .loading #mainContainer {
+          opacity: 0.6;
+      }
+      #loadingIndicator {
+          display: none;
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: rgba(0, 0, 0, 0.8);
+          color: white;
+          padding: 10px 20px;
+          border-radius: 4px;
+          z-index: 1000;
+      }
+      .loading #loadingIndicator {
+          display: block;
+      }
+  </style>
+</head>
+<body>
+  <div id="headerSection">
+      <div class="status-row">
+          <div>
+              <span class="key-indicator" id="keyIndicator"></span>
+              <span>API Key Status</span>
+          </div>
+          <span class="reset-link" onclick="if(confirm('Reset API key?')){localStorage.removeItem('gemini_chat_apikey_v1');document.getElementById('apiKeyInput').style.display='block';document.getElementById('keyIndicator').classList.remove('active');document.getElementById('apiKeyInput').value='';}">Reset Key</span>
+      </div>
+      <input type="password" id="apiKeyInput" placeholder="Enter your Google Gemini API key" 
+          onchange="if(this.value.trim()){localStorage.setItem('gemini_chat_apikey_v1',this.value.trim());document.getElementById('keyIndicator').classList.add('active');this.style.display='none';}"
+      >
+  </div>
+
+  <div id="mainContainer">
+      <div id="messageHistory"></div>
+      <div id="inputSection">
+          <div id="inputRow">
+              <input type="text" id="userInput" placeholder="Type your message...">
+              <button id="sendButton" onclick="sendMessage()">Send</button>
+          </div>
+          <div id="actionLinks">
+              <a class="action-link delete" onclick="clearAllMessages()">Clear all messages</a>
+          </div>
+      </div>
+  </div>
+  
+  <div id="loadingIndicator">Sending message...</div>
+
+  <script>
+  // Initial setup
+  if(localStorage.getItem('gemini_chat_apikey_v1')) {
+      document.getElementById('apiKeyInput').style.display = 'none';
+      document.getElementById('keyIndicator').classList.add('active');
+  } else {
+      document.getElementById('apiKeyInput').style.display = 'block';
+      document.getElementById('keyIndicator').classList.remove('active');
+  }
+
+  // Load existing messages
+  var messageHistory = [];
+  try {
+      var saved = localStorage.getItem('gemini_chat_history_v1');
+      if(saved) {
+          messageHistory = JSON.parse(saved);
+          var historyDiv = document.getElementById('messageHistory');
+          messageHistory.forEach(function(msg) {
+              var div = document.createElement('div');
+              div.className = 'message ' + msg.role + '-message';
+              div.textContent = msg.content;
+              historyDiv.appendChild(div);
+          });
+      }
+  } catch(e) {
+      addStatusMessage('Error loading message history');
+      localStorage.removeItem('gemini_chat_history_v1');
+      messageHistory = [];
+  }
+
+  function addStatusMessage(text) {
+      var div = document.createElement('div');
+      div.className = 'message status-message';
+      div.textContent = text;
+      document.getElementById('messageHistory').appendChild(div);
+      scrollToBottom();
+  }
+
+  function addMessage(role, content) {
+      var div = document.createElement('div');
+      div.className = 'message ' + role + '-message';
+      div.textContent = content;
+      document.getElementById('messageHistory').appendChild(div);
+      scrollToBottom();
+      
+      messageHistory.push({role: role, content: content});
+      try {
+          localStorage.setItem('gemini_chat_history_v1', JSON.stringify(messageHistory));
+      } catch(e) {
+          addStatusMessage('Error saving messages - clearing old messages');
+          messageHistory = messageHistory.slice(-10);
+          localStorage.setItem('gemini_chat_history_v1', JSON.stringify(messageHistory));
+      }
+  }
+
+  function scrollToBottom() {
+      var historyDiv = document.getElementById('messageHistory');
+      historyDiv.scrollTop = historyDiv.scrollHeight;
+  }
+
+  function sendMessage() {
+      var userInput = document.getElementById('userInput');
+      var messageText = userInput.value.trim();
+      if(!messageText) return;
+
+      // Check for API key
+      var apiKey = localStorage.getItem('gemini_chat_apikey_v1');
+      if(!apiKey) {
+          apiKey = document.getElementById('apiKeyInput').value.trim();
+          if(!apiKey) {
+              alert('Please enter your Google Gemini API key');
+              document.getElementById('apiKeyInput').focus();
+              return;
+          }
+      }
+
+      // Disable input during send
+      userInput.disabled = true;
+      document.getElementById('sendButton').disabled = true;
+      document.body.classList.add('loading');
+
+      // Add user message
+      addMessage('user', messageText);
+      userInput.value = '';
+
+      // Prepare Gemini API request
+      var xhr = new XMLHttpRequest();
+      var model = "gemini-2.0-flash";
+      var apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent?key=" + encodeURIComponent(apiKey);
+      xhr.open('POST', apiUrl, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+
+      xhr.onreadystatechange = function() {
+          if(xhr.readyState === 4) {
+              userInput.disabled = false;
+              document.getElementById('sendButton').disabled = false;
+              document.body.classList.remove('loading');
+              
+              if(xhr.status === 200) {
+                  try {
+                      var response = JSON.parse(xhr.responseText);
+                      // Access the response text from the Gemini API structure
+                      var responseText = response.candidates[0].content.parts[0].text;
+                      addMessage('assistant', responseText);
+                  } catch(e) {
+                      addStatusMessage('Error processing response: ' + e.message);
+                  }
+              } else {
+                  var errorMsg = 'Error: ';
+                  try {
+                      var error = JSON.parse(xhr.responseText);
+                      errorMsg += error.error.message;
+                  } catch(e) {
+                      errorMsg += 'Failed to send message';
+                  }
+                  addStatusMessage(errorMsg);
+              }
+              
+              userInput.focus();
+          }
+      };
+
+      xhr.onerror = function() {
+          addStatusMessage('Network error occurred');
+          userInput.disabled = false;
+          document.getElementById('sendButton').disabled = false;
+          document.body.classList.remove('loading');
+          userInput.focus();
+      };
+
+      xhr.ontimeout = function() {
+          addStatusMessage('Request timed out');
+          userInput.disabled = false;
+          document.getElementById('sendButton').disabled = false;
+          document.body.classList.remove('loading');
+          userInput.focus();
+      };
+
+      try {
+          // Transform messageHistory to the expected Gemini API structure:
+          // Each message becomes an object with a role and a parts array.
+          var apiMessages = messageHistory.map(function(msg) {
+              return {
+                  role: msg.role === 'user' ? 'user' : 'model',
+                  parts: [{ text: msg.content }]
+              };
+          });
+
+          var data = {
+              contents: apiMessages
+          };
+
+          xhr.send(JSON.stringify(data));
+      } catch(e) {
+          addStatusMessage('Error sending message: ' + e.message);
+          userInput.disabled = false;
+          document.getElementById('sendButton').disabled = false;
+          document.body.classList.remove('loading');
+          userInput.focus();
+      }
+  }
+
+  function copyFallback(text) {
+      var textArea = document.createElement('textarea');
+      textArea.value = text;
+      // Position offscreen but not display:none
+      textArea.style.position = 'fixed';
+      textArea.style.top = '-9999px';
+      textArea.style.left = '-9999px';
+      document.body.appendChild(textArea);
+      
+      try {
+          textArea.focus();
+          textArea.select();
+          var successful = document.execCommand('copy');
+          if (successful) {
+              addStatusMessage('Messages copied successfully');
+          } else {
+              addStatusMessage('Copy operation failed');
+          }
+      } catch(err) {
+          addStatusMessage('Unable to copy messages');
+      }
+      
+      document.body.removeChild(textArea);
+  }
+
+  function clearAllMessages() {
+      if(confirm('Clear all messages?')) {
+          messageHistory = [];
+          localStorage.removeItem('gemini_chat_history_v1');
+          document.getElementById('messageHistory').innerHTML = '';
+          addStatusMessage('Messages cleared');
+      }
+  }
+
+  // Add enter key handler
+  document.getElementById('userInput').onkeypress = function(e) {
+      if((e.key === 'Enter' || e.keyCode === 13) && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+      }
+  };
+  </script>
+</body>
+</html>
