@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>BB Gemini Chat</title>
  <style>
+      /* This version has only been tested on BBQ5 */
       * {
           box-sizing: border-box;
           margin: 0;
@@ -18,7 +19,7 @@
           background: #121212; /* Gemini style dark background */
           color: #E8EAED; /* Gemini style light text */
           height: 100vh;
-          display: flex;
+          display: block;
           flex-direction: column;
       }
       #headerSection {
@@ -50,6 +51,41 @@
           text-decoration: underline;
           cursor: pointer;
       }
+      #menuButton {
+            background: #444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            font-size: 18px;
+            cursor: pointer;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+        }
+
+        #settingsMenu {
+            display: none;
+            position: fixed;
+            top: 40px;
+            right: 10px;
+            background: #333;
+            border: 1px solid #555;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #settingsMenu button {
+            display: block;
+            width: 100%;
+            margin-bottom: 5px;
+            background: #555;
+            color: white;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+        }
+
       #apiKeyInput {
           width: 100%;
           padding: 8px;
@@ -68,17 +104,18 @@
           min-height: 0; /* Important for Firefox */
       }
       #messageHistory {
-          flex-grow: 1;
-          overflow-y: auto;
-          border: 1px solid #333;
-          border-radius: 4px;
-          padding: 10px;
-          margin-bottom: 10px;
-          min-height: 0; /* Important for Firefox */
-          background: #2D2D2D;
-		  max-width: 100%; /* Prevent any restrictions */
-		  width: 100%;
-      }
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        overflow-y: auto;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 10px;
+        background: #2D2D2D;
+        padding-bottom: 60px; 
+    }
       .message {
           margin-bottom: 10px;
           padding: 8px;
@@ -87,19 +124,17 @@
           word-wrap: break-word;
       }
       .user-message {
-          background: #1F73B7; /* Gemini style blue */
-          color: #fff;
-		  margin-left: 20px;
-		  position: relative;
-			padding: 10px 15px;
-			border-radius: 15px;
-			margin-bottom: 10px;
-			clear: both;
-			max-width: 70%; /* Adjust width as needed */
-			margin-left: auto; /* Pushes it to the right */
-			text-align: left;
-			font-family: 'Open Sans', sans-serif;
-      }
+            background: #1F73B7;
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 15px 3px 15px 15px; /* Simpler border-radius */
+            margin-bottom: 10px;
+            max-width: 70%;
+            margin-left: auto; /* Keep right alignment */
+            text-align: left;
+            font-family: sans-serif; /* More compatible font */
+            word-wrap: break-word;
+        }
       .assistant-message {
           background: #2D2D2D; /* Gemini style gray */
           color: #E8EAED;
@@ -113,32 +148,39 @@
           color: #B0BEC5;
       }
       #inputSection {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin-bottom: 50px;
+        height: 5%;
           flex-shrink: 0;
           margin-top: auto;
+          position: fixed;
       }
       #inputRow {
           display: flex;
           gap: 10px;
           margin-bottom: 5px;
       }
-      #userInput {
-          flex-grow: 1;
-          padding: 8px;
-          border: 1px solid #333;
-          border-radius: 4px;
-          height: 40px;
-          background: #1E1E1E;
-          color: #E8EAED;
-      }
+        #userInput {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 12px;
+            color: black; /* Ensures the text typed in is white */
+            border: 1px solid #555; /* Optional: subtle border */
+            border-radius: 5px;
+            outline: none;
+        }
 	  pre[class*="language-"] {
 		font-size: 12px; /* Adjust to your liking */
 		line-height: 1.4;
-		width: 100%;
+		width: 100vw;       /* Full viewport width */
+        position: relative; /* Allows precise positioning */
+        left: -20px;        /* Moves it leftward */
+        margin: 0;          /* Resets margins */  /* Optional: Adjust for aesthetics */
+        box-sizing: border-box; /* Ensures proper width calculation */
 	  }
-	  code {
-		width: 100%;
-		display: block;
-		}
       #sendButton {
           padding: 8px 16px;
           background: #4285F4; /* Gemini style blue button */
@@ -188,10 +230,15 @@
 </head>
 <body>
   <div id="mainContainer">
+    <button id="menuButton">☰</button>
+    <div id="settingsMenu">
+        <button id="clearMessages">Clear Messages</button>
+        <button id="setApiKey">Set API Key</button>
+    </div>
       <div id="messageHistory"></div>
       <div id="inputSection">
           <div id="inputRow">
-              <input type="text" id="userInput" placeholder="Type your message...">
+              <input type="text" id="userInput" placeholder="Type your message..." te>
               <button id="sendButton" onclick="sendMessage()">Send</button>
           </div>
           <div id="actionLinks">
@@ -230,98 +277,98 @@
       document.getElementById('keyIndicator').classList.remove('active');
   }
 
-// Load existing messages
-var messageHistory = [];
-try {
-		var saved = localStorage.getItem('gemini_chat_history_v1');
-		if(saved) {
-			messageHistory = JSON.parse(saved);
-			var historyDiv = document.getElementById('messageHistory');
-			messageHistory.forEach(function(msg) {
-				var div = document.createElement('div');
-				div.className = 'message ' + msg.role + '-message';
-
-				// Render Markdown for assistant's messages
-				if (msg.role === "assistant") {
-					div.innerHTML = marked.parse(msg.content);
-				} 
-				else 
-				{
-					div.textContent = msg.content; // Plain text for user messages
-				}
-
-				historyDiv.appendChild(div);
-			});
-		}
-		// Now apply syntax highlighting
-		if (typeof Prism !== 'undefined') 
-		{
-			Prism.highlightAll(); // Highlight all code blocks
-		}
-		else
-		{
-			alert("Error: 'Prism' is not available. Check script loading.");
-		}
-	} 
-	catch (e) {
-		addStatusMessage('Error loading message history');
-		localStorage.removeItem('gemini_chat_history_v1');
-		messageHistory = [];
-	}
-
-  
-  
-
-  function addStatusMessage(text) {
-      var div = document.createElement('div');
-      div.className = 'message status-message';
-      div.textContent = text;
-      document.getElementById('messageHistory').appendChild(div);
-      scrollToMessage();
-  }
-
-  function addMessage(role, content) {
-    var div = document.createElement('div');
-    div.className = 'message ' + role + '-message';
-
-    if (role === "assistant") {
-        div.innerHTML = marked.parse(content); // Render Markdown
-    } else {
-        div.textContent = content; // Plain text for user messages
-    }
-
-    document.getElementById('messageHistory').appendChild(div);
-    scrollToMessage();
-
-    // Now apply syntax highlighting
-    if (typeof Prism !== 'undefined') 
-    {
-        Prism.highlightAll(); // Highlight all code blocks
-    }
-    else
-    {
-        alert("Error: 'Prism' is not available. Check script loading.");
-    }
-
-    messageHistory.push({ role: role, content: content });
-
+    // Load existing messages
+    var messageHistory = [];
     try {
-        localStorage.setItem('gemini_chat_history_v1', JSON.stringify(messageHistory));
-    } catch (e) {
-        addStatusMessage('Error saving messages - clearing old messages');
-        messageHistory = messageHistory.slice(-10);
-        localStorage.setItem('gemini_chat_history_v1', JSON.stringify(messageHistory));
-    }
-}
+            var saved = localStorage.getItem('gemini_chat_history_v1');
+            if(saved) {
+                messageHistory = JSON.parse(saved);
+                var historyDiv = document.getElementById('messageHistory');
+                messageHistory.forEach(function(msg) {
+                    var div = document.createElement('div');
+                    div.className = 'message ' + msg.role + '-message';
+
+                    // Render Markdown for assistant's messages
+                    if (msg.role === "assistant") {
+                        div.innerHTML = marked.parse(msg.content);
+                    } 
+                    else 
+                    {
+                        div.textContent = msg.content; // Plain text for user messages
+                    }
+
+                    historyDiv.appendChild(div);
+                });
+            }
+            // Now apply syntax highlighting
+            if (typeof Prism !== 'undefined') 
+            {
+                Prism.highlightAll(); // Highlight all code blocks
+            }
+            else
+            {
+                alert("Error: 'Prism' is not available. Check script loading.");
+            }
+        } 
+        catch (e) {
+            addStatusMessage('Error loading message history');
+            localStorage.removeItem('gemini_chat_history_v1');
+            messageHistory = [];
+        }
+
+    
+    
+
+        function addStatusMessage(text) {
+            var div = document.createElement('div');
+            div.className = 'message status-message';
+            div.textContent = text;
+            document.getElementById('messageHistory').appendChild(div);
+            scrollToMessage();
+        }
+
+        function addMessage(role, content) {
+            var div = document.createElement('div');
+            div.className = 'message ' + role + '-message';
+
+            if (role === "assistant") {
+                div.innerHTML = marked.parse(content); // Render Markdown
+            } else {
+                div.textContent = content; // Plain text for user messages
+            }
+
+            document.getElementById('messageHistory').appendChild(div);
+            scrollToMessage();
+
+            // Now apply syntax highlighting
+            if (typeof Prism !== 'undefined') 
+            {
+                Prism.highlightAll(); // Highlight all code blocks
+            }
+            else
+            {
+                alert("Error: 'Prism' is not available. Check script loading.");
+            }
+
+            messageHistory.push({ role: role, content: content });
+
+            try {
+                localStorage.setItem('gemini_chat_history_v1', JSON.stringify(messageHistory));
+            } catch (e) {
+                addStatusMessage('Error saving messages - clearing old messages');
+                messageHistory = messageHistory.slice(-10);
+                localStorage.setItem('gemini_chat_history_v1', JSON.stringify(messageHistory));
+            }
+        }
   
-  function scrollToMessage() {
-    var historyDiv = document.getElementById('messageHistory');
-    var messages = historyDiv.getElementsByClassName('assistant-message');
-    if (messages.length > 0) {
-        var lastMessage = messages[messages.length - 1];
-        historyDiv.scrollTop = lastMessage.offsetTop - historyDiv.offsetTop;
-    }
-}
+        function scrollToMessage() {
+                var historyDiv = document.getElementById('messageHistory');
+                var messages = historyDiv.getElementsByClassName('assistant-message');
+                if (messages.length > 0) {
+                    var lastMessage = messages[messages.length - 1];
+                    historyDiv.scrollTop = lastMessage.offsetTop - historyDiv.offsetTop;
+                }
+            }
 
   function sendMessage() {
       var userInput = document.getElementById('userInput');
@@ -466,6 +513,50 @@ try {
           sendMessage();
       }
   };
+
+    // Safe event listener for old browsers
+    function addEvent(el, event, callback) {
+        if (el.addEventListener) {
+            el.addEventListener(event, callback);
+        } else if (el.attachEvent) { // For IE8 and below
+            el.attachEvent("on" + event, callback);
+        }
+    }
+
+    // Menu toggle
+    addEvent(document.getElementById('menuButton'), 'click', function() {
+        var menu = document.getElementById('settingsMenu');
+        menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    });
+
+    // Clear messages
+    addEvent(document.getElementById('clearMessages'), 'click', function() {
+        if (window.localStorage) {
+            localStorage.removeItem('gemini_chat_history_v1');
+        }
+        document.getElementById('messageHistory').innerHTML = ''; // Clear UI
+    });
+
+    // Set API Key
+    addEvent(document.getElementById('setApiKey'), 'click', function() {
+        var apiKey = prompt("Enter your API Key:");
+        if (apiKey) {
+            if (window.localStorage) {
+                localStorage.setItem('gemini_chat_apikey_v1', apiKey);
+            }
+            alert("API Key saved!");
+        }
+    });
+
+    // Hide menu when clicking outside
+    addEvent(document, 'click', function(event) {
+        var menu = document.getElementById('settingsMenu');
+        var button = document.getElementById('menuButton');
+        if (event.target !== menu && event.target !== button) {
+            menu.style.display = 'none';
+        }
+    });
+
   </script>
 </body>
 </html>
