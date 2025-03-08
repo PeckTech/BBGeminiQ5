@@ -435,11 +435,12 @@
         }
 
         document.getElementById('messageHistory').appendChild(div);
-        scrollToMessage();
+        
 
         // Apply syntax highlighting
         if (typeof Prism !== 'undefined') {
             Prism.highlightAll();
+            scrollToMessage();
         }
 
         messageHistory.push({ role: role, content: content });
@@ -457,7 +458,13 @@
     
     function scrollToMessage() {
         var historyDiv = document.getElementById('messageHistory');
-        historyDiv.scrollTop = historyDiv.scrollHeight;
+        var lastMessage = historyDiv.lastElementChild;
+        
+        if (lastMessage) {
+            // This scrolls so the newest message is at the top of the viewport
+            var topPosition = lastMessage.offsetTop - 5; // 5px padding from top
+            historyDiv.scrollTop = topPosition;
+        }
     }
 
     function sendMessage() {
